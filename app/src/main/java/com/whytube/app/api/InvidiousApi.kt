@@ -246,7 +246,7 @@ object InvidiousApi {
                                         durationFormatted = formatDuration(rel.optInt("duration", 0)),
                                         viewsFormatted = formatViews(rel.optLong("views", 0L)),
                                         uploadedFormatted = rel.optString("uploadedDate", ""),
-                                        thumbnailUrl = rel.optString("thumbnail", "https://i.ytimg.com/vi/$relId/hqdefault.jpg")
+                                        thumbnailUrl = "https://i.ytimg.com/vi/$relId/hqdefault.jpg"
                                     )
                                 )
                             }
@@ -304,7 +304,8 @@ object InvidiousApi {
                 val duration = obj.optInt("duration", 0)
                 val views = obj.optLong("views", 0L)
                 val uploaded = obj.optString("uploadedDate", obj.optString("uploaded", ""))
-                val thumb = obj.optString("thumbnail", "https://i.ytimg.com/vi/$videoId/hqdefault.jpg")
+                // Selalu gunakan CDN resmi YouTube langsung (i.ytimg.com) agar 100% cepat, tidak rusak, dan hemat kuota
+                val thumb = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
 
                 list.add(
                     VideoItem(
@@ -331,11 +332,7 @@ object InvidiousApi {
         val viewCount = obj.optLong("viewCount", 0L)
         val publishedText = obj.optString("publishedText")
 
-        val thumbnails = obj.optJSONArray("videoThumbnails")
-        var thumbUrl = "https://i.ytimg.com/vi/$id/hqdefault.jpg"
-        if (thumbnails != null && thumbnails.length() > 0) {
-            thumbUrl = thumbnails.getJSONObject(0).optString("url", thumbUrl)
-        }
+        val thumbUrl = "https://i.ytimg.com/vi/$id/hqdefault.jpg"
 
         return VideoItem(
             id = id,

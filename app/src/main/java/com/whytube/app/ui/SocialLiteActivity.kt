@@ -34,8 +34,8 @@ class SocialLiteActivity : AppCompatActivity() {
         const val PLATFORM_TIKTOK = "tiktok"
         const val PLATFORM_INSTAGRAM = "instagram"
 
-        // Gunakan mobile web TikTok (bukan app redirect) agar bisa diakses via WebView
-        private const val URL_TIKTOK = "https://www.tiktok.com/foryou"
+        // Gunakan mobile web TikTok resmi agar bisa diakses via WebView
+        private const val URL_TIKTOK = "https://www.tiktok.com"
         private const val URL_INSTAGRAM = "https://www.instagram.com"
 
         // User-Agent Chrome Mobile Android yang identik dengan browser nyata
@@ -303,6 +303,7 @@ class SocialLiteActivity : AppCompatActivity() {
 
             /**
              * Mencegah TikTok/Instagram mengarahkan ke halaman download app / intent://
+             * Menelan skema eksternal tanpa me-reload halaman agar tidak memicu loop "kedap-kedap"
              */
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
@@ -316,16 +317,18 @@ class SocialLiteActivity : AppCompatActivity() {
             }
 
             private fun handleRedirectUrl(view: WebView?, url: String): Boolean {
-                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("tiktok://") || url.startsWith("snssdk")) {
-                    val fallback = if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
-                    view?.loadUrl(fallback)
-                    return true
+                // Jika URL web normal (http/https), biarkan WebView memuatnya secara wajar
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    return false
                 }
-                return false
+
+                // Jika URL adalah skema app (intent://, market://, tiktok://, snssdk://, dll),
+                // telan secara silent (return true) TANPA reload agar tidak terjadi loop "kedap-kedap"
+                return true
             }
 
             /**
-             * Saat terjadi error, reload ke URL utama platform (bukan berhenti total)
+             * Saat terjadi error resource, sembunyikan loading tanpa reload agar tidak looping
              */
             override fun onReceivedError(
                 view: WebView?,
@@ -333,11 +336,8 @@ class SocialLiteActivity : AppCompatActivity() {
                 description: String?,
                 failingUrl: String?
             ) {
-                // Hanya redirect jika bukan resource kecil (gambar/css) yang gagal
-                if (failingUrl == view?.url) {
-                    val fallback = if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
-                    view?.loadUrl(fallback)
-                }
+                binding.pbWebLoading.visibility = View.GONE
+                binding.pbCenterLoading.visibility = View.GONE
             }
         }
     }

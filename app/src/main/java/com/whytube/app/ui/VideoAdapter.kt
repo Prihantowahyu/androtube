@@ -60,11 +60,18 @@ class VideoAdapter(
                 binding.tvDuration.visibility = View.GONE
             }
 
+            // Selalu pastikan menggunakan CDN resmi YouTube agar tidak gagal lewat proxy
+            val safeThumbUrl = if (item.thumbnailUrl.contains("proxy.piped") || item.thumbnailUrl.isEmpty()) {
+                "https://i.ytimg.com/vi/${item.id}/hqdefault.jpg"
+            } else {
+                item.thumbnailUrl
+            }
+
             // Load thumbnail hemat memori dengan Coil
-            binding.ivThumbnail.load(item.thumbnailUrl) {
+            binding.ivThumbnail.load(safeThumbUrl) {
                 crossfade(true)
-                placeholder(R.drawable.ic_whytube_logo)
-                error(R.drawable.ic_whytube_logo)
+                placeholder(R.drawable.bg_thumbnail_placeholder)
+                error(R.drawable.bg_thumbnail_placeholder)
             }
 
             val isFav = favoritesManager?.isFavorite(item.id) == true
