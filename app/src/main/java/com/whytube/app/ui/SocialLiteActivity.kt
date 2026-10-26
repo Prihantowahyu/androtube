@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -34,8 +35,8 @@ class SocialLiteActivity : AppCompatActivity() {
         const val PLATFORM_TIKTOK = "tiktok"
         const val PLATFORM_INSTAGRAM = "instagram"
 
-        // Gunakan mobile web TikTok resmi agar bisa diakses via WebView
-        private const val URL_TIKTOK = "https://www.tiktok.com"
+        // Langsung buka halaman FYP TikTok agar feed infinite scroll muncul seperti app asli
+        private const val URL_TIKTOK = "https://www.tiktok.com/foryou"
         private const val URL_INSTAGRAM = "https://www.instagram.com"
 
         // User-Agent Chrome Mobile Android yang identik dengan browser nyata
@@ -245,21 +246,38 @@ class SocialLiteActivity : AppCompatActivity() {
         val webView = binding.webView
         val settings = webView.settings
 
+        // Fitur dasar
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
         settings.javaScriptCanOpenWindowsAutomatically = true
+        settings.setSupportMultipleWindows(true)
         settings.mediaPlaybackRequiresUserGesture = false
-        settings.cacheMode = WebSettings.LOAD_DEFAULT
+
+        // Rendering & tampilan
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
-        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-        settings.allowFileAccess = false
+        settings.setSupportZoom(false) // TikTok tidak perlu zoom
+        settings.displayZoomControls = false
+        settings.builtInZoomControls = false
+
+        // Konten & cache
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        settings.allowFileAccess = true
+        settings.allowContentAccess = true
+        @Suppress("DEPRECATION")
         settings.savePassword = false
+
+        // Geolocation (dibutuhkan TikTok untuk konten lokal FYP)
+        settings.setGeolocationEnabled(true)
 
         // Krusial: Ganti User-Agent dengan Chrome mobile nyata
         // TikTok & Instagram mendeteksi '; wv' = WebView lalu memblokir
         settings.userAgentString = CHROME_MOBILE_UA
+
+        // Hardware acceleration untuk scroll yang mulus
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -271,6 +289,14 @@ class SocialLiteActivity : AppCompatActivity() {
                     binding.pbCenterLoading.visibility = View.GONE
                 }
             }
+
+            // Izinkan geolocation agar TikTok tidak stuck di layar minta lokasi
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String?,
+                callback: GeolocationPermissions.Callback?
+            ) {
+                callback?.invoke(origin, true, false)
+            }
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -281,7 +307,12 @@ class SocialLiteActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 binding.pbWebLoading.visibility = View.GONE
                 binding.pbCenterLoading.visibility = View.GONE
-                CookieManager.getInstance().flush() // Sinkronisasi cookie login secara permanen
+                CookieManager.getInstance().flush()
+
+                // Injeksi JS: pastikan semua video di feed autoplay saat scroll
+                if (platform == PLATFORM_TIKTOK) {
+                    injectTikTokAutoplayFix(view)
+                }
             }
 
             override fun shouldInterceptRequest(
@@ -301,10 +332,6 @@ class SocialLiteActivity : AppCompatActivity() {
                 return super.shouldInterceptRequest(view, request)
             }
 
-            /**
-             * Mencegah TikTok/Instagram mengarahkan ke halaman download app / intent://
-             * Menelan skema eksternal tanpa me-reload halaman agar tidak memicu loop "kedap-kedap"
-             */
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
                 return handleRedirectUrl(view, url)
@@ -317,19 +344,13 @@ class SocialLiteActivity : AppCompatActivity() {
             }
 
             private fun handleRedirectUrl(view: WebView?, url: String): Boolean {
-                // Jika URL web normal (http/https), biarkan WebView memuatnya secara wajar
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     return false
                 }
-
-                // Jika URL adalah skema app (intent://, market://, tiktok://, snssdk://, dll),
-                // telan secara silent (return true) TANPA reload agar tidak terjadi loop "kedap-kedap"
+                // Telan skema app (intent://, tiktok://, snssdk://, market://) tanpa reload
                 return true
             }
 
-            /**
-             * Saat terjadi error resource, sembunyikan loading tanpa reload agar tidak looping
-             */
             override fun onReceivedError(
                 view: WebView?,
                 errorCode: Int,
@@ -340,6 +361,53 @@ class SocialLiteActivity : AppCompatActivity() {
                 binding.pbCenterLoading.visibility = View.GONE
             }
         }
+    }
+
+    /**
+     * Injeksi JavaScript untuk memastikan video di feed TikTok autoplay
+     * saat pengguna scroll, mirip perilaku aplikasi TikTok asli.
+     */
+    private fun injectTikTokAutoplayFix(view: WebView?) {
+        val js = """
+            (function() {
+                // Observer: mainkan video yang masuk viewport, pause yang keluar
+                var observer = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        var video = entry.target;
+                        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+                            video.play().catch(function(){});
+                        } else {
+                            video.pause();
+                        }
+                    });
+                }, { threshold: [0.5] });
+
+                // Observasi semua video yang sudah ada
+                document.querySelectorAll('video').forEach(function(v) {
+                    v.muted = false;
+                    observer.observe(v);
+                });
+
+                // Observasi video baru yang dimuat saat scroll (infinite feed)
+                var mutationObserver = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        mutation.addedNodes.forEach(function(node) {
+                            if (node.nodeName === 'VIDEO') {
+                                node.muted = false;
+                                observer.observe(node);
+                            } else if (node.querySelectorAll) {
+                                node.querySelectorAll('video').forEach(function(v) {
+                                    v.muted = false;
+                                    observer.observe(v);
+                                });
+                            }
+                        });
+                    });
+                });
+                mutationObserver.observe(document.body, { childList: true, subtree: true });
+            })();
+        """.trimIndent()
+        view?.evaluateJavascript(js, null)
     }
 
     private fun setupBackHandler() {
