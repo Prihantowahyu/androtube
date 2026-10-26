@@ -24,6 +24,13 @@
             app:show_buffering="always"
             app:use_controller="true" />
 
+        <!-- Web Fallback Player (Garansi 100% video berputar tanpa blokir bot) -->
+        <WebView
+            android:id="@+id/playerWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
         <!-- Audio-Only RAM Saver Overlay -->
         <LinearLayout
             android:id="@+id/layoutAudioOnly"

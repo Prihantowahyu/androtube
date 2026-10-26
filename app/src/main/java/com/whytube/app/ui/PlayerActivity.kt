@@ -21,6 +21,10 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.LinearLayoutManager
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.whytube.app.R
 import com.whytube.app.api.InvidiousApi
 import com.whytube.app.api.VideoDetails
@@ -44,6 +48,7 @@ class PlayerActivity : AppCompatActivity() {
     private var videoDetails: VideoDetails? = null
     private var isAudioOnlyMode = false
     private var currentStream: VideoStream? = null
+    private var isWebPlayerActive = false
 
     // Sleep Timer
     private var sleepTimer: CountDownTimer? = null
@@ -76,6 +81,7 @@ class PlayerActivity : AppCompatActivity() {
 
         setupInitialUi()
         setupPlayer()
+        setupWebPlayer()
         setupGestures()
         setupRelatedList()
         setupButtons()
@@ -108,11 +114,8 @@ class PlayerActivity : AppCompatActivity() {
 
                 override fun onPlayerError(error: PlaybackException) {
                     binding.playerLoading.visibility = View.GONE
-                    Toast.makeText(
-                        this@PlayerActivity,
-                        "Error memutar stream: ${error.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    // Jika ekstraksi stream diblokir oleh YouTube, otomatis fallback ke Web Player
+                    currentVideo?.let { playWebFallback(it.id) }
                 }
             })
         }
@@ -237,6 +240,73 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebPlayer() {
+        val webView = binding.playerWebView
+        val settings = webView.settings
+        settings.javaScriptEnabled = true
+        settings.domStorageEnabled = true
+        settings.databaseEnabled = true
+        settings.mediaPlaybackRequiresUserGesture = false
+        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        settings.useWideViewPort = true
+        settings.loadWithOverviewMode = true
+        settings.userAgentString = "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36"
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: return false
+                // Mencegah redirect ke YouTube app atau market://
+                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("vnd.youtube:")) {
+                    return true
+                }
+                return false
+            }
+        }
+    }
+
+    private fun playWebFallback(videoId: String) {
+        if (videoId.isEmpty()) return
+        isWebPlayerActive = true
+
+        // Hentikan ExoPlayer untuk menghemat RAM
+        exoPlayer?.stop()
+        binding.playerView.visibility = View.GONE
+        binding.layoutAudioOnly.visibility = View.GONE
+        binding.playerWebView.visibility = View.VISIBLE
+        binding.playerLoading.visibility = View.GONE
+
+        val embedHtml = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <style>
+                    * { margin:0; padding:0; background:#000; overflow:hidden; }
+                    html, body { width:100%; height:100%; }
+                    iframe { width:100%; height:100%; border:none; }
+                </style>
+            </head>
+            <body>
+                <iframe 
+                    src="https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3" 
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen" 
+                    allowfullscreen>
+                </iframe>
+            </body>
+            </html>
+        """.trimIndent()
+
+        binding.playerWebView.loadDataWithBaseURL(
+            "https://www.youtube-nocookie.com",
+            embedHtml,
+            "text/html",
+            "UTF-8",
+            null
+        )
+    }
+
     private fun loadDetails(videoId: String) {
         binding.playerLoading.visibility = View.VISIBLE
         lifecycleScope.launch {
@@ -266,18 +336,24 @@ class PlayerActivity : AppCompatActivity() {
                     ?: details.streams.firstOrNull { !it.isAudioOnly }
                     ?: details.streams.firstOrNull()
 
-                preferredStream?.let { playStream(it) }
-            }.onFailure { err ->
-                Toast.makeText(
-                    this@PlayerActivity,
-                    "Gagal memuat info video: ${err.localizedMessage}",
-                    Toast.LENGTH_LONG
-                ).show()
+                if (preferredStream != null) {
+                    playStream(preferredStream)
+                } else {
+                    // Jika ekstraksi stream diblokir bot check, putar langsung via Web Player
+                    playWebFallback(videoId)
+                }
+            }.onFailure {
+                // Fallback aman: Putar langsung via Web Player
+                playWebFallback(videoId)
             }
         }
     }
 
     private fun playStream(stream: VideoStream) {
+        isWebPlayerActive = false
+        binding.playerWebView.visibility = View.GONE
+        binding.playerView.visibility = View.VISIBLE
+
         currentStream = stream
         binding.btnQuality.text = stream.quality
 
@@ -430,7 +506,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (!isAudioOnlyMode && exoPlayer?.isPlaying == true) {
+        if (!isAudioOnlyMode && (exoPlayer?.isPlaying == true || isWebPlayerActive)) {
             enterPipMode()
         }
     }
@@ -458,6 +534,16 @@ class PlayerActivity : AppCompatActivity() {
         val isInPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode
         if (!isAudioOnlyMode && !isInPip) {
             exoPlayer?.pause()
+            if (isWebPlayerActive) {
+                binding.playerWebView.onPause()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isWebPlayerActive) {
+            binding.playerWebView.onResume()
         }
     }
 
@@ -466,6 +552,10 @@ class PlayerActivity : AppCompatActivity() {
         sleepTimer = null
         exoPlayer?.release()
         exoPlayer = null
+        try {
+            binding.playerWebView.stopLoading()
+            binding.playerWebView.destroy()
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 }
