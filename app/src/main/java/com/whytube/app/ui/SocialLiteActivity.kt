@@ -34,8 +34,16 @@ class SocialLiteActivity : AppCompatActivity() {
         const val PLATFORM_TIKTOK = "tiktok"
         const val PLATFORM_INSTAGRAM = "instagram"
 
-        private const val URL_TIKTOK = "https://www.tiktok.com"
+        // Gunakan mobile web TikTok (bukan app redirect) agar bisa diakses via WebView
+        private const val URL_TIKTOK = "https://www.tiktok.com/foryou"
         private const val URL_INSTAGRAM = "https://www.instagram.com"
+
+        // User-Agent Chrome Mobile Android yang identik dengan browser nyata
+        // TikTok & Instagram aktif mendeteksi & memblokir string "wv" (WebView)
+        private const val CHROME_MOBILE_UA =
+            "Mozilla/5.0 (Linux; Android 11; SM-G991B) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/124.0.6367.82 Mobile Safari/537.36"
 
         // Domain tracker & analytics yang diblokir untuk menghemat RAM & Kuota
         private val BLOCKED_TRACKERS = listOf(
@@ -243,13 +251,18 @@ class SocialLiteActivity : AppCompatActivity() {
 
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
-        settings.databaseEnabled = false // Matikan DB lokal browser agar tidak alokasi RAM
+        settings.databaseEnabled = false
         settings.mediaPlaybackRequiresUserGesture = false
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
+        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        settings.allowFileAccess = false
+        settings.savePassword = false
 
-        settings.userAgentString = settings.userAgentString.replace("; wv", "")
+        // Krusial: Ganti User-Agent dengan Chrome mobile nyata
+        // TikTok & Instagram mendeteksi '; wv' = WebView lalu memblokir
+        settings.userAgentString = CHROME_MOBILE_UA
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -289,6 +302,38 @@ class SocialLiteActivity : AppCompatActivity() {
                     }
                 }
                 return super.shouldInterceptRequest(view, request)
+            }
+
+            /**
+             * Mencegah TikTok/Instagram mengarahkan ke halaman download app / intent://
+             * Jika terdeteksi, arahkan kembali ke URL mobile web yang benar
+             */
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: return false
+
+                // Blokir intent:// dan market:// (redirect ke Play Store)
+                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("tiktok://")) {
+                    val fallback = if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
+                    view?.loadUrl(fallback)
+                    return true
+                }
+                return false
+            }
+
+            /**
+             * Saat terjadi error, reload ke URL utama platform (bukan berhenti total)
+             */
+            override fun onReceivedError(
+                view: WebView?,
+                errorCode: Int,
+                description: String?,
+                failingUrl: String?
+            ) {
+                // Hanya redirect jika bukan resource kecil (gambar/css) yang gagal
+                if (failingUrl == view?.url) {
+                    val fallback = if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
+                    view?.loadUrl(fallback)
+                }
             }
         }
     }
