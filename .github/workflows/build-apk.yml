@@ -22,35 +22,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Cache Gradle Dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Grant execute permission to gradlew
-        run: chmod +x gradlew
-
-      - name: Setup Gradle Wrapper
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: wrapper
-
-      - name: Download Gradle Wrapper JAR
-        run: |
-          mkdir -p gradle/wrapper
-          curl -L -o gradle/wrapper/gradle-wrapper.jar \
-            "https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar" \
-            || wget -q -O gradle/wrapper/gradle-wrapper.jar \
-            "https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar" \
-            || gradle wrapper --gradle-version=8.5
+          gradle-version: '8.5'
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: gradle assembleDebug --stacktrace --no-daemon
 
       - name: Find and Rename APK
         run: |

@@ -45,12 +45,8 @@ class SocialLiteActivity : AppCompatActivity() {
             "AppleWebKit/537.36 (KHTML, like Gecko) " +
             "Chrome/124.0.6367.82 Mobile Safari/537.36"
 
-        // Domain tracker & analytics yang diblokir untuk menghemat RAM & Kuota
+        // Domain tracker & analytics pihak ketiga yang diblokir untuk menghemat kuota
         private val BLOCKED_TRACKERS = listOf(
-            "analytics.tiktok.com",
-            "log.tiktok.com",
-            "mon.tiktokv.com",
-            "ib.tiktokv.com",
             "connect.facebook.net",
             "graph.facebook.com/logging",
             "pixel.facebook.com",
@@ -251,12 +247,13 @@ class SocialLiteActivity : AppCompatActivity() {
 
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
-        settings.databaseEnabled = false
+        settings.databaseEnabled = true
+        settings.javaScriptCanOpenWindowsAutomatically = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
-        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.allowFileAccess = false
         settings.savePassword = false
 
@@ -306,13 +303,20 @@ class SocialLiteActivity : AppCompatActivity() {
 
             /**
              * Mencegah TikTok/Instagram mengarahkan ke halaman download app / intent://
-             * Jika terdeteksi, arahkan kembali ke URL mobile web yang benar
              */
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
+                return handleRedirectUrl(view, url)
+            }
 
-                // Blokir intent:// dan market:// (redirect ke Play Store)
-                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("tiktok://")) {
+            @Deprecated("Deprecated in Java")
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                if (url == null) return false
+                return handleRedirectUrl(view, url)
+            }
+
+            private fun handleRedirectUrl(view: WebView?, url: String): Boolean {
+                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("tiktok://") || url.startsWith("snssdk")) {
                     val fallback = if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
                     view?.loadUrl(fallback)
                     return true

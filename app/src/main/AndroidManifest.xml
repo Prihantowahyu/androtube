@@ -16,7 +16,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WhyTube"
         android:largeHeap="false"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".ui.MainActivity"
