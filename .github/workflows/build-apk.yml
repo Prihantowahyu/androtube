@@ -1,0 +1,50 @@
+name: Build WhyTube Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Memungkinkan build manual dari tab Actions di GitHub
+
+jobs:
+  build:
+    name: Compile & Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+
+      - name: Build Debug APK
+        run: gradle assembleDebug --stacktrace --no-daemon
+
+      - name: Find and Rename APK
+        run: |
+          mkdir -p output_apk
+          find app/build/outputs/apk/ -name "*.apk" -exec cp {} output_apk/WhyTube-Lite-Debug.apk \;
+          ls -la output_apk/
+
+      - name: Upload APK as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhyTube-Lite-APK
+          path: output_apk/WhyTube-Lite-Debug.apk
+          retention-days: 14
+
+      - name: Job Summary
+        run: |
+          echo "### 🚀 APK WhyTube Lite Berhasil Dibuat!" >> $GITHUB_STEP_SUMMARY
+          echo "File APK siap diunduh di tab **Artifacts** di atas." >> $GITHUB_STEP_SUMMARY
+          echo "Ukuran aplikasi sangat ringan dan dioptimalkan khusus untuk Android RAM 1GB - 2GB." >> $GITHUB_STEP_SUMMARY

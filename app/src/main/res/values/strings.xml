@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">WhyTube Lite</string>
+    <string name="search_hint">Cari video atau ketik URL...</string>
+    <string name="trending">Trending Hari Ini</string>
+    <string name="favorites">Disimpan</string>
+    <string name="low_ram_active">Hemat RAM Aktif</string>
+    <string name="audio_mode">Mode Audio Saja (Hemat 80% RAM)</string>
+    <string name="video_mode">Mode Video</string>
+    <string name="loading">Memuat video...</string>
+    <string name="no_results">Tidak ada video ditemukan</string>
+    <string name="error_fetch">Gagal memuat data, periksa koneksi internet</string>
+    <string name="views">penonton</string>
+    <string name="quality">Kualitas</string>
+    <string name="auto">Otomatis (Hemat Kuota)</string>
+</resources>
