@@ -21,6 +21,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.LinearLayoutManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -86,6 +87,10 @@ class PlayerActivity : AppCompatActivity() {
         setupRelatedList()
         setupButtons()
 
+        // Putar video langsung via WebView — metode paling andal, tanpa blokir bot
+        playWebFallback(currentVideo!!.id)
+
+        // Muat info deskripsi & video terkait di background (TANPA mengalihkan player)
         loadDetails(currentVideo!!.id)
     }
 
@@ -238,6 +243,14 @@ class PlayerActivity : AppCompatActivity() {
         binding.btnPiP.setOnClickListener {
             enterPipMode()
         }
+
+        // Tombol Muat Ulang: Reload WebView jika video stuck
+        binding.btnWebMode.setOnClickListener {
+            currentVideo?.let {
+                Toast.makeText(this, "Memuat ulang video...", Toast.LENGTH_SHORT).show()
+                playWebFallback(it.id)
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -249,19 +262,25 @@ class PlayerActivity : AppCompatActivity() {
         settings.databaseEnabled = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.cacheMode = WebSettings.LOAD_DEFAULT
-        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+        settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
         settings.userAgentString = "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36"
 
+        // WebChromeClient WAJIB ada agar HTML5 video dapat berputar
+        webView.webChromeClient = object : WebChromeClient() {}
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
-                // Mencegah redirect ke YouTube app atau market://
-                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("vnd.youtube:")) {
-                    return true
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    return false
                 }
-                return false
+                return true
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                binding.playerLoading.visibility = View.GONE
             }
         }
     }
@@ -270,37 +289,39 @@ class PlayerActivity : AppCompatActivity() {
         if (videoId.isEmpty()) return
         isWebPlayerActive = true
 
+        // Bebaskan sentuhan container agar pengguna bisa tap kontrol player YouTube
+        binding.playerContainer.setOnTouchListener(null)
+
         // Hentikan ExoPlayer untuk menghemat RAM
         exoPlayer?.stop()
         binding.playerView.visibility = View.GONE
         binding.layoutAudioOnly.visibility = View.GONE
         binding.playerWebView.visibility = View.VISIBLE
-        binding.playerLoading.visibility = View.GONE
+        binding.playerLoading.visibility = View.VISIBLE
 
-        val embedHtml = """
+        // Gunakan loadData dengan HTML penuh agar autoplay & fullscreen berjalan lancar
+        val html = """
             <!DOCTYPE html>
             <html>
             <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    * { margin:0; padding:0; background:#000; overflow:hidden; }
-                    html, body { width:100%; height:100%; }
-                    iframe { width:100%; height:100%; border:none; }
+                    * { margin: 0; padding: 0; background: #000; }
+                    iframe { width: 100%; height: 100vh; border: none; display: block; }
                 </style>
             </head>
             <body>
-                <iframe 
-                    src="https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&playsinline=1&modestbranding=1&rel=0&iv_load_policy=3" 
-                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen" 
+                <iframe
+                    src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&controls=1&modestbranding=1&rel=0&enablejsapi=1"
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                     allowfullscreen>
                 </iframe>
             </body>
             </html>
         """.trimIndent()
-
         binding.playerWebView.loadDataWithBaseURL(
-            "https://www.youtube-nocookie.com",
-            embedHtml,
+            "https://www.youtube.com",
+            html,
             "text/html",
             "UTF-8",
             null
@@ -308,13 +329,12 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun loadDetails(videoId: String) {
-        binding.playerLoading.visibility = View.VISIBLE
         lifecycleScope.launch {
             val result = InvidiousApi.getVideoDetails(videoId)
-            binding.playerLoading.visibility = View.GONE
 
             result.onSuccess { details ->
                 videoDetails = details
+                // Hanya update teks info — JANGAN ganggu WebView yang sedang memutar
                 binding.tvPlayerTitle.text = details.title
                 binding.tvPlayerStats.text = "${details.viewsFormatted} • ${details.publishedTime}"
                 binding.tvPlayerChannelName.text = details.uploaderName
@@ -324,28 +344,20 @@ class PlayerActivity : AppCompatActivity() {
                 } else {
                     "Tidak ada deskripsi tersedia."
                 }
-
                 relatedAdapter.submitList(details.relatedVideos)
 
-                // Pilih stream sesuai kualitas default hemat kuota (Default: 360p)
+                // Simpan stream untuk keperluan download & tombol kualitas,
+                // tapi JANGAN otomatis pindah ke ExoPlayer agar WebView tidak terganggu
                 val prefs = getSharedPreferences("whytube_prefs", Context.MODE_PRIVATE)
                 val defaultPref = prefs.getString("default_quality", "360p") ?: "360p"
-
-                val preferredStream = details.streams.find { it.quality.contains(defaultPref, ignoreCase = true) }
+                currentStream = details.streams.find { it.quality.contains(defaultPref, ignoreCase = true) }
                     ?: details.streams.find { it.quality.contains("360p") }
                     ?: details.streams.firstOrNull { !it.isAudioOnly }
                     ?: details.streams.firstOrNull()
 
-                if (preferredStream != null) {
-                    playStream(preferredStream)
-                } else {
-                    // Jika ekstraksi stream diblokir bot check, putar langsung via Web Player
-                    playWebFallback(videoId)
-                }
-            }.onFailure {
-                // Fallback aman: Putar langsung via Web Player
-                playWebFallback(videoId)
+                currentStream?.let { binding.btnQuality.text = it.quality }
             }
+            // Jika gagal, tidak masalah — WebView sudah berjalan dari awal
         }
     }
 

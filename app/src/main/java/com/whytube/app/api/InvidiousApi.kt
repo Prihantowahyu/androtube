@@ -25,8 +25,8 @@ object InvidiousApi {
     private var currentPipedIndex = 0
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(6, TimeUnit.SECONDS)
         .build()
 
     private fun getPipedBaseUrl(): String = PIPED_INSTANCES[currentPipedIndex % PIPED_INSTANCES.size]
