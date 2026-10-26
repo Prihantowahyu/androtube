@@ -68,6 +68,7 @@
 
     <!-- Scrollable Content -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollDetails"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -141,6 +142,17 @@
                     android:background="@drawable/bg_circle_button"
                     android:src="@drawable/ic_bookmark_border"
                     android:contentDescription="Simpan" />
+
+                <!-- PiP (Picture in Picture / Floating Window) Button -->
+                <ImageView
+                    android:id="@+id/btnPiP"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:padding="8dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:src="@drawable/ic_pip"
+                    android:contentDescription="Layar Mengambang (PiP)" />
             </LinearLayout>
 
             <View

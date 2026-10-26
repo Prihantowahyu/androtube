@@ -1,7 +1,12 @@
 package com.whytube.app.ui
 
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -124,6 +129,11 @@ class PlayerActivity : AppCompatActivity() {
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
             }
         }
+
+        // PiP (Picture-in-Picture / Layar Mengambang)
+        binding.btnPiP.setOnClickListener {
+            enterPipMode()
+        }
     }
 
     private fun loadDetails(videoId: String) {
@@ -218,9 +228,53 @@ class PlayerActivity : AppCompatActivity() {
         )
     }
 
+    private fun enterPipMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(Rational(16, 9))
+                    .build()
+                enterPictureInPictureMode(params)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Gagal masuk mode PiP: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(this, "Fitur PiP membutuhkan Android 8.0 ke atas", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Otomatis masuk mode PiP saat tombol Home ditekan jika video sedang diputar
+        if (!isAudioOnlyMode && exoPlayer?.isPlaying == true) {
+            enterPipMode()
+        }
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (isInPictureInPictureMode) {
+            // Sembunyikan elemen UI lainnya untuk menghemat RAM dan menjaga layar floating bersih
+            binding.scrollDetails.visibility = View.GONE
+            binding.playerView.useController = false
+            binding.playerContainer.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        } else {
+            // Kembalikan ke tampilan semula saat floating player diperbesar
+            binding.scrollDetails.visibility = View.VISIBLE
+            binding.playerView.useController = true
+            val density = resources.displayMetrics.density
+            binding.playerContainer.layoutParams.height = (220 * density).toInt()
+        }
+    }
+
     override fun onPause() {
         super.onPause()
-        if (!isAudioOnlyMode) {
+        val isInPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode
+        if (!isAudioOnlyMode && !isInPip) {
             exoPlayer?.pause()
         }
     }
