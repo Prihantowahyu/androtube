@@ -32,12 +32,29 @@ class MainActivity : AppCompatActivity() {
 
         favoritesManager = FavoritesManager(this)
 
+        setupPlatformHub()
         setupRecyclerView()
         setupSearch()
         setupChips()
         setupSwipeRefresh()
 
         loadTrending()
+    }
+
+    private fun setupPlatformHub() {
+        binding.btnNavTikTok.setOnClickListener {
+            val intent = Intent(this, SocialLiteActivity::class.java).apply {
+                putExtra(SocialLiteActivity.EXTRA_PLATFORM, SocialLiteActivity.PLATFORM_TIKTOK)
+            }
+            startActivity(intent)
+        }
+
+        binding.btnNavInstagram.setOnClickListener {
+            val intent = Intent(this, SocialLiteActivity::class.java).apply {
+                putExtra(SocialLiteActivity.EXTRA_PLATFORM, SocialLiteActivity.PLATFORM_INSTAGRAM)
+            }
+            startActivity(intent)
+        }
     }
 
     private fun setupRecyclerView() {
