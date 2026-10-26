@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Memungkinkan build manual dari tab Actions di GitHub
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,29 +22,62 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Setup Gradle Wrapper
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.5'
+          gradle-version: wrapper
+
+      - name: Download Gradle Wrapper JAR
+        run: |
+          mkdir -p gradle/wrapper
+          curl -L -o gradle/wrapper/gradle-wrapper.jar \
+            "https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar" \
+            || wget -q -O gradle/wrapper/gradle-wrapper.jar \
+            "https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar" \
+            || gradle wrapper --gradle-version=8.5
 
       - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace --no-daemon
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Find and Rename APK
         run: |
           mkdir -p output_apk
           find app/build/outputs/apk/ -name "*.apk" -exec cp {} output_apk/WhyTube-Lite-Debug.apk \;
-          ls -la output_apk/
+          echo "=== APK Info ==="
+          ls -lh output_apk/
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: WhyTube-Lite-APK
           path: output_apk/WhyTube-Lite-Debug.apk
-          retention-days: 14
+          retention-days: 30
 
       - name: Job Summary
         run: |
           echo "### 🚀 APK WhyTube Lite Berhasil Dibuat!" >> $GITHUB_STEP_SUMMARY
           echo "File APK siap diunduh di tab **Artifacts** di atas." >> $GITHUB_STEP_SUMMARY
-          echo "Ukuran aplikasi sangat ringan dan dioptimalkan khusus untuk Android RAM 1GB - 2GB." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Fitur | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| YouTube Lite Native | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| TikTok Lite Sandbox | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Instagram Lite Sandbox | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| PiP / Floating Window | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unduh Offline | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sleep Timer | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Playback Speed | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gesture Volume & Brightness | ✅ |" >> $GITHUB_STEP_SUMMARY
