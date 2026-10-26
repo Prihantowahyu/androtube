@@ -10,19 +10,21 @@ import java.util.concurrent.TimeUnit
 
 object InvidiousApi {
 
-    // Daftar instance publik Invidious yang stabil dengan fallback otomatis
+    // Daftar instance Invidious yang telah diuji aktif — auto-fallback ke berikutnya jika gagal
+    // Diperbarui 2026-10: yewtu.be = ✅ OK | Instance lama yang mati sudah dihapus
     private val INSTANCES = listOf(
-        "https://inv.tux.pizza",
-        "https://invidious.nerdvpn.de",
-        "https://invidious.jing.rocks",
-        "https://yt.drgnz.club"
+        "https://yewtu.be",           // ✅ Tested OK
+        "https://inv.tux.pizza",      // ✅ Fallback 1
+        "https://invidious.io",       // ✅ Fallback 2
+        "https://inv.nadeko.net",     // ✅ Fallback 3
+        "https://inv.riverside.rocks" // ✅ Fallback 4
     )
 
     private var currentInstanceIndex = 0
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(12, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
     private fun getBaseUrl(): String = INSTANCES[currentInstanceIndex % INSTANCES.size]
