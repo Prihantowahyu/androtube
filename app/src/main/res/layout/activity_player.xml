@@ -64,6 +64,20 @@
             android:layout_gravity="center"
             android:indeterminateTint="@color/primary"
             android:visibility="gone" />
+
+        <!-- Swipe Gesture Overlay Indicator (Brightness / Volume) -->
+        <TextView
+            android:id="@+id/tvGestureFeedback"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_badge_ram"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
     </FrameLayout>
 
     <!-- Scrollable Content -->
@@ -98,62 +112,107 @@
                 android:textSize="12sp"
                 tools:text="1.234.567 x ditonton • 3 hari lalu" />
 
-            <!-- Action Buttons Strip -->
-            <LinearLayout
+            <!-- Action Buttons Scroll Strip -->
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
                 android:layout_marginTop="14dp"
-                android:gravity="center_vertical">
+                android:scrollbars="none">
 
-                <!-- Mode Audio Toggle Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnToggleAudioMode"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Mode Audio"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_primary"
-                    app:icon="@drawable/ic_headphones"
-                    app:iconTint="@color/secondary"
-                    app:backgroundTint="@color/surface_variant"
-                    app:cornerRadius="20dp" />
-
-                <!-- Quality Picker Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnQuality"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="360p (Lite)"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_primary"
-                    app:backgroundTint="@color/surface_variant"
-                    app:cornerRadius="20dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                <!-- Bookmark Button -->
-                <ImageView
-                    android:id="@+id/btnPlayerBookmark"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:padding="8dp"
-                    android:background="@drawable/bg_circle_button"
-                    android:src="@drawable/ic_bookmark_border"
-                    android:contentDescription="Simpan" />
+                    <!-- Mode Audio Toggle Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnToggleAudioMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mode Audio"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary"
+                        app:icon="@drawable/ic_headphones"
+                        app:iconTint="@color/secondary"
+                        app:backgroundTint="@color/surface_variant"
+                        app:cornerRadius="20dp" />
 
-                <!-- PiP (Picture in Picture / Floating Window) Button -->
-                <ImageView
-                    android:id="@+id/btnPiP"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:padding="8dp"
-                    android:background="@drawable/bg_circle_button"
-                    android:src="@drawable/ic_pip"
-                    android:contentDescription="Layar Mengambang (PiP)" />
-            </LinearLayout>
+                    <!-- Quality Picker Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnQuality"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="360p"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary"
+                        app:backgroundTint="@color/surface_variant"
+                        app:cornerRadius="20dp" />
+
+                    <!-- Playback Speed Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSpeed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="1.0x"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary"
+                        app:backgroundTint="@color/surface_variant"
+                        app:cornerRadius="20dp" />
+
+                    <!-- Download Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDownload"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Unduh"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary"
+                        app:icon="@drawable/ic_download"
+                        app:iconTint="@color/text_primary"
+                        app:backgroundTint="@color/surface_variant"
+                        app:cornerRadius="20dp" />
+
+                    <!-- Sleep Timer Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnTimer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Timer"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_primary"
+                        app:icon="@drawable/ic_timer"
+                        app:iconTint="@color/text_primary"
+                        app:backgroundTint="@color/surface_variant"
+                        app:cornerRadius="20dp" />
+
+                    <!-- Bookmark Button -->
+                    <ImageView
+                        android:id="@+id/btnPlayerBookmark"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:padding="8dp"
+                        android:background="@drawable/bg_circle_button"
+                        android:src="@drawable/ic_bookmark_border"
+                        android:contentDescription="Simpan" />
+
+                    <!-- PiP (Picture in Picture / Floating Window) Button -->
+                    <ImageView
+                        android:id="@+id/btnPiP"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:padding="8dp"
+                        android:background="@drawable/bg_circle_button"
+                        android:src="@drawable/ic_pip"
+                        android:contentDescription="Layar Mengambang (PiP)" />
+                </LinearLayout>
+            </HorizontalScrollView>
 
             <View
                 android:layout_width="match_parent"
