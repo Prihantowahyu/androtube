@@ -32,6 +32,12 @@ Aplikasi ini menggabungkan:
    - Video otomatis mengecil menjadi jendela mengambang saat tombol Home ditekan.
 8. **TikTok Lite & Instagram Lite Sandboxing**:
    - Menjalankan TikTok & Instagram dalam WebView terisolasi yang mematikan database SQLite lokal browser dan menghentikan background script saat aplikasi tidak aktif.
+   - **Tombol Unduh Video & Reels**: Tombol mengambang untuk mengunduh video TikTok atau Instagram Reels yang sedang ditonton langsung ke galeri.
+   - **Mode Layar Penuh Tanpa Gangguan (Fullscreen Immersion)**: Menyembunyikan bilah atas untuk pengalaman menonton video layar penuh tanpa tombol yang mengganggu.
+   - **Mode Hemat Kuota Ekstrem**: Opsi sekali klik untuk mematikan autoplay video berulang saat scrolling.
+   - **Pembersih Cache Sekali Klik**: Tombol untuk langsung membersihkan cache memori HP agar penyimpanan kembali lega.
+   - **Buka Tautan Langsung (Paste Link)**: Masukkan tautan video TikTok atau Reels Instagram untuk langsung diputar.
+   - **Sesi Login Sekali Simpan**: Cookie sesi akun Anda disimpan secara permanen di ruang aman perangkat, sehingga sekali login Anda tidak perlu login berulang-ulang.
    - **Blokir Pelacak (Anti-Tracker Interceptor)**: Memblokir otomatis script analitik dan pelacak seperti `analytics.tiktok.com`, `connect.facebook.net`, `pixel.facebook.com` yang menghemat 40-60% kuota dan konsumsi RAM.
    - Saat keluar dari TikTok/Instagram, seluruh instans WebView langsung dimusnahkan (`destroy()`) dan `System.gc()` dipanggil untuk membebaskan RAM seketika.
 9. **Pengolahan Gambar RGB_565**:

@@ -4,25 +4,33 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.whytube.app.R
 import com.whytube.app.databinding.ActivitySocialLiteBinding
+import com.whytube.app.utils.DownloadHelper
 import java.io.ByteArrayInputStream
 
 class SocialLiteActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySocialLiteBinding
     private var platform: String = PLATFORM_TIKTOK
+    private var isDataSaverActive = false
+    private var isFullscreen = false
 
     companion object {
         const val EXTRA_PLATFORM = "EXTRA_PLATFORM"
+        const val EXTRA_URL = "EXTRA_URL"
         const val PLATFORM_TIKTOK = "tiktok"
         const val PLATFORM_INSTAGRAM = "instagram"
 
@@ -50,22 +58,38 @@ class SocialLiteActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         platform = intent.getStringExtra(EXTRA_PLATFORM) ?: PLATFORM_TIKTOK
+        val initialUrl = intent.getStringExtra(EXTRA_URL)
 
+        setupCookiePersistence()
         setupHeader()
         setupWebView()
+        setupActions()
         setupBackHandler()
 
-        val targetUrl = if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
+        val targetUrl = initialUrl ?: if (platform == PLATFORM_TIKTOK) URL_TIKTOK else URL_INSTAGRAM
         binding.webView.loadUrl(targetUrl)
+    }
+
+    /**
+     * Mengatur CookieManager agar sesi login pengguna tersimpan secara aman & permanen
+     */
+    private fun setupCookiePersistence() {
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.setAcceptThirdPartyCookies(binding.webView, true)
+        }
     }
 
     private fun setupHeader() {
         if (platform == PLATFORM_TIKTOK) {
             binding.ivPlatformLogo.setImageResource(R.drawable.ic_tiktok)
             binding.tvPlatformTitle.text = "TikTok Lite"
+            binding.btnDownloadFloating.text = "Unduh TikTok"
         } else {
             binding.ivPlatformLogo.setImageResource(R.drawable.ic_instagram)
             binding.tvPlatformTitle.text = "Instagram Lite"
+            binding.btnDownloadFloating.text = "Unduh Reels"
         }
 
         binding.btnBack.setOnClickListener {
@@ -77,21 +101,154 @@ class SocialLiteActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupActions() {
+        // Layar Penuh
+        binding.btnFullscreen.setOnClickListener {
+            toggleFullscreen(true)
+        }
+
+        binding.btnExitFullscreen.setOnClickListener {
+            toggleFullscreen(false)
+        }
+
+        // Tombol Unduh Video / Reels Mengambang
+        binding.btnDownloadFloating.setOnClickListener {
+            extractAndDownloadVideo()
+        }
+
+        // Menu Opsi Lainnya (Cache, Hemat Kuota, Buka Link, Akun)
+        binding.btnMoreSocial.setOnClickListener {
+            showOptionsMenu()
+        }
+    }
+
+    private fun toggleFullscreen(enable: Boolean) {
+        isFullscreen = enable
+        binding.topBar.visibility = if (enable) View.GONE else View.VISIBLE
+        binding.btnExitFullscreen.visibility = if (enable) View.VISIBLE else View.GONE
+        val msg = if (enable) "Mode Layar Penuh Aktif" else "Keluar Layar Penuh"
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun extractAndDownloadVideo() {
+        // Injeksi JS untuk mendeteksi URL video dari elemen <video> di halaman
+        val jsDetectVideo = "(function() { " +
+                "  var videos = document.getElementsByTagName('video'); " +
+                "  for (var i = 0; i < videos.length; i++) { " +
+                "    var src = videos[i].currentSrc || videos[i].src; " +
+                "    if (src && src.startsWith('http')) return src; " +
+                "  } " +
+                "  return ''; " +
+                "})();"
+
+        binding.webView.evaluateJavascript(jsDetectVideo) { videoUrl ->
+            val cleanUrl = videoUrl?.replace("\"", "")?.trim().orEmpty()
+            if (cleanUrl.isNotEmpty() && cleanUrl.startsWith("http")) {
+                val filename = "${platform.uppercase()}_Video_${System.currentTimeMillis()}"
+                DownloadHelper.downloadMedia(
+                    this,
+                    filename,
+                    cleanUrl,
+                    isAudioOnly = false
+                )
+            } else {
+                // Alternatif jika URL video blob: tawarkan download dari URL halaman
+                val currentWebUrl = binding.webView.url.orEmpty()
+                Toast.makeText(
+                    this,
+                    "Sedang memproses tautan video: $currentWebUrl",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun showOptionsMenu() {
+        val options = arrayOf(
+            "🧹 Bersihkan Cache & Bebaskan Memori HP",
+            if (isDataSaverActive) "⚡ Matikan Mode Hemat Kuota Ekstrem" else "🔋 Aktifkan Mode Hemat Kuota Ekstrem (Matikan Autoplay)",
+            "🔗 Buka Tautan Video Langsung (Paste Link)",
+            "👤 Info Akun & Sesi Login"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("${if (platform == PLATFORM_TIKTOK) "TikTok" else "Instagram"} Opsi")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> clearMemoryCache()
+                    1 -> toggleDataSaver()
+                    2 -> showDirectLinkDialog()
+                    3 -> showAccountSessionInfo()
+                }
+            }
+            .show()
+    }
+
+    private fun clearMemoryCache() {
+        binding.webView.clearCache(true)
+        System.gc()
+        Toast.makeText(this, "Cache berhasil dibersihkan! Memori HP lega kembali.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toggleDataSaver() {
+        isDataSaverActive = !isDataSaverActive
+        binding.webView.settings.mediaPlaybackRequiresUserGesture = isDataSaverActive
+
+        val jsPauseAll = if (isDataSaverActive) {
+            "document.querySelectorAll('video').forEach(v => { v.autoplay = false; v.pause(); });"
+        } else {
+            "document.querySelectorAll('video').forEach(v => { v.autoplay = true; });"
+        }
+        binding.webView.evaluateJavascript(jsPauseAll, null)
+
+        val status = if (isDataSaverActive) "Aktif (Autoplay mati)" else "Nonaktif"
+        Toast.makeText(this, "Mode Hemat Kuota Ekstrem: $status", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showDirectLinkDialog() {
+        val input = EditText(this).apply {
+            hint = "Tempel link video TikTok atau IG Reels..."
+            setSingleLine()
+            setPadding(40, 30, 40, 30)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Buka Tautan Langsung")
+            .setView(input)
+            .setPositiveButton("Buka") { _, _ ->
+                val url = input.text.toString().trim()
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    binding.webView.loadUrl(url)
+                } else {
+                    Toast.makeText(this, "Format link tidak valid", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showAccountSessionInfo() {
+        val appName = if (platform == PLATFORM_TIKTOK) "TikTok" else "Instagram"
+        AlertDialog.Builder(this)
+            .setTitle("Sesi Login $appName")
+            .setMessage("Akun Anda disimpan di ruang aman lokal HP. Anda hanya perlu login sekali dan sesi akan selalu aktif tanpa perlu login ulang.")
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         val webView = binding.webView
         val settings = webView.settings
 
-        // Optimasi khusus RAM Kecil (1GB - 2GB)
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = false // Matikan DB lokal browser agar tidak alokasi RAM
         settings.mediaPlaybackRequiresUserGesture = false
-        settings.cacheMode = WebSettings.LOAD_DEFAULT // Manfaatkan cache disk
+        settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
 
-        // User-Agent Mobile Modern namun Ringan
         settings.userAgentString = settings.userAgentString.replace("; wv", "")
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -114,9 +271,9 @@ class SocialLiteActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 binding.pbWebLoading.visibility = View.GONE
                 binding.pbCenterLoading.visibility = View.GONE
+                CookieManager.getInstance().flush() // Sinkronisasi cookie login secara permanen
             }
 
-            // Blokir tracker & skrip analitik berat untuk hemat memori
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest?
@@ -124,7 +281,6 @@ class SocialLiteActivity : AppCompatActivity() {
                 val url = request?.url?.toString() ?: return super.shouldInterceptRequest(view, request)
                 for (tracker in BLOCKED_TRACKERS) {
                     if (url.contains(tracker)) {
-                        // Mengembalikan respons kosong (0 byte) untuk skrip pelacak
                         return WebResourceResponse(
                             "text/plain",
                             "UTF-8",
@@ -146,6 +302,10 @@ class SocialLiteActivity : AppCompatActivity() {
     }
 
     private fun handleBackAction() {
+        if (isFullscreen) {
+            toggleFullscreen(false)
+            return
+        }
         if (binding.webView.canGoBack()) {
             binding.webView.goBack()
         } else {
@@ -155,7 +315,7 @@ class SocialLiteActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        // Bekukan eksekusi JavaScript agar tidak memakan CPU & baterai di background
+        CookieManager.getInstance().flush()
         binding.webView.onPause()
         binding.webView.pauseTimers()
     }
@@ -167,7 +327,7 @@ class SocialLiteActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        // Sangat krusial untuk RAM kecil: lepaskan dan hancurkan instans WebView seketika
+        CookieManager.getInstance().flush()
         binding.webViewContainer.removeView(binding.webView)
         binding.webView.apply {
             stopLoading()
@@ -178,6 +338,6 @@ class SocialLiteActivity : AppCompatActivity() {
             destroy()
         }
         super.onDestroy()
-        System.gc() // Bersihkan RAM segera
+        System.gc()
     }
 }

@@ -10,17 +10,18 @@
 
     <!-- Top Action Bar -->
     <LinearLayout
+        android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:background="@color/surface"
         android:gravity="center_vertical"
-        android:paddingHorizontal="8dp"
+        android:paddingHorizontal="6dp"
         android:elevation="3dp">
 
         <ImageView
             android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:padding="8dp"
             android:src="@drawable/ic_arrow_back"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -28,9 +29,9 @@
 
         <ImageView
             android:id="@+id/ivPlatformLogo"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
-            android:layout_marginStart="4dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="2dp"
             android:src="@drawable/ic_tiktok"
             android:contentDescription="Platform Logo" />
 
@@ -38,35 +39,56 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tvPlatformTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TikTok Lite Sandbox"
+                android:text="TikTok Lite"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🛡️ Blokir Iklan &amp; Tracker • Hemat RAM"
+                android:text="🛡️ Anti-Tracker • Hemat RAM"
                 android:textColor="@color/badge_ram"
                 android:textSize="10sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- Layar Penuh Toggle -->
+        <ImageView
+            android:id="@+id/btnFullscreen"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:padding="9dp"
+            android:src="@drawable/ic_fullscreen"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Layar Penuh" />
+
+        <!-- Muat Ulang -->
         <ImageView
             android:id="@+id/btnRefresh"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="8dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:padding="9dp"
             android:src="@drawable/ic_refresh"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Muat Ulang" />
+
+        <!-- Menu Lainnya (Cache, Hemat Kuota, Akun, Link) -->
+        <ImageView
+            android:id="@+id/btnMoreSocial"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_more_vert"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Menu Opsi" />
     </LinearLayout>
 
     <!-- Horizontal Loading Indicator -->
@@ -91,6 +113,36 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <!-- Floating Download Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDownloadFloating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:text="Unduh Video"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            app:icon="@drawable/ic_download"
+            app:iconTint="@color/white"
+            app:backgroundTint="@color/primary"
+            app:cornerRadius="24dp"
+            app:elevation="4dp" />
+
+        <!-- Floating Button to Exit Fullscreen -->
+        <ImageView
+            android:id="@+id/btnExitFullscreen"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="12dp"
+            android:background="@drawable/bg_circle_button"
+            android:padding="10dp"
+            android:src="@drawable/ic_fullscreen_exit"
+            android:visibility="gone"
+            android:contentDescription="Keluar Layar Penuh" />
+
+        <!-- Center Loading Spinner -->
         <ProgressBar
             android:id="@+id/pbCenterLoading"
             android:layout_width="44dp"
