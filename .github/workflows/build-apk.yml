@@ -3,9 +3,13 @@ name: Build WhyTube Android APK
 on:
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -44,6 +48,14 @@ jobs:
           path: output_apk/WhyTube-Lite-Debug.apk
           retention-days: 30
 
+      - name: Publish GitHub Release (hanya untuk tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: WhyTube Lite Android ${{ github.ref_name }}
+          files: output_apk/WhyTube-Lite-Debug.apk
+          generate_release_notes: true
+
       - name: Job Summary
         run: |
           echo "### 🚀 APK WhyTube Lite Berhasil Dibuat!" >> $GITHUB_STEP_SUMMARY
@@ -55,7 +67,7 @@ jobs:
           echo "| TikTok Lite Sandbox | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| Instagram Lite Sandbox | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| PiP / Floating Window | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unduh Offline | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unduh Offline Video & Audio | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| Sleep Timer | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| Playback Speed | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| Gesture Volume & Brightness | ✅ |" >> $GITHUB_STEP_SUMMARY
