@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">WhyTube Lite</string>
+    <string name="app_name">RinganTube</string>
     <string name="search_hint">Cari video atau ketik URL...</string>
     <string name="trending">Trending Hari Ini</string>
     <string name="favorites">Disimpan</string>
